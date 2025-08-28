@@ -3,11 +3,13 @@ const path = require('path')
 const {open} = require('sqlite')
 const sqlite3 = require('sqlite3')
 const bcrypt = require('bcrypt')
+const cors = require('cors') // Import CORS
 
 const app = express()
+app.use(cors()) // Enable CORS for all routes
 app.use(express.json())
-const dbPath = path.join(__dirname, 'goodreads.db')
 
+const dbPath = path.join(__dirname, 'goodreads.db')
 let db = null
 
 const initializeDBAndServer = async () => {
@@ -28,36 +30,22 @@ initializeDBAndServer()
 
 // Get Books API
 app.get('/books/', async (request, response) => {
-  const getBooksQuery = `
-  SELECT
-    *
-  FROM
-    book
-  ORDER BY
-    book_id;`
+  const getBooksQuery = `SELECT * FROM book ORDER BY book_id;`
   const booksArray = await db.all(getBooksQuery)
   response.send(booksArray)
 })
-//register API
+
+// Register API
 app.post('/users/', async (request, response) => {
   const {username, name, password, gender, location} = request.body
   const hashedpassword = await bcrypt.hash(password, 10)
-  const selectUserQuery = `SELECT * 
-  FROM 
-  user WHERE username = '${username}'`
+  const selectUserQuery = `SELECT * FROM user WHERE username = '${username}'`
   const dbUser = await db.get(selectUserQuery)
   if (dbUser === undefined) {
     const createUserQuery = `
-  INSERT INTO
-    user (username, name, password, gender, location)
-  VALUES
-    (
-      '${username}',
-      '${name}',
-      '${hashedpassword}',
-      '${gender}',
-      '${location}'  
-    );`
+      INSERT INTO user (username, name, password, gender, location)
+      VALUES ('${username}', '${name}', '${hashedpassword}', '${gender}', '${location}');
+    `
     await db.run(createUserQuery)
     response.send('created successfully')
   } else {
@@ -65,20 +53,19 @@ app.post('/users/', async (request, response) => {
     response.send('user already exists')
   }
 })
-//login API
+
+// Login API
 app.post('/login/', async (request, response) => {
   const {username, password} = request.body
-  const selectUserQuery = `SELECT * 
-  FROM 
-  user WHERE username = '${username}'`
+  const selectUserQuery = `SELECT * FROM user WHERE username = '${username}'`
   const dbUser = await db.get(selectUserQuery)
   if (dbUser === undefined) {
     response.status(400)
-    response.status('invalid user')
+    response.send('invalid user')
   } else {
-    const isPasswaordMatched = await bcrypt.compare(password, dbUser.password)
-    if (isPasswaordMatched === true) {
-      response.send('login succesfull')
+    const isPasswordMatched = await bcrypt.compare(password, dbUser.password)
+    if (isPasswordMatched === true) {
+      response.send('login successful')
     } else {
       response.status(400)
       response.send('invalid Password')
